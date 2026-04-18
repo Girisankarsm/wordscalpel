@@ -18,10 +18,11 @@ from wordscalpel.core import count, find, positions, remove, replace, swap
 
 
 # ─────────────────────────────────────────────────────────────
-#  I/O helpers
+#  I/O helpers & Streaming Engine
 # ─────────────────────────────────────────────────────────────
 
 def _read(path: str) -> str:
+    """Read full file (legacy / for file_find)."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
     with open(path, "r", encoding="utf-8") as fh:
@@ -30,11 +31,94 @@ def _read(path: str) -> str:
         raise EmptyInputError(f"file '{path}'")
     return content
 
+def _map_n(global_n: int | tuple[int, int] | None, offset: int, line_count: int) -> int | tuple[int, int] | None:
+    """Map a global occurrence target into a local line occurrence target."""
+    if global_n is None:
+        return None
+        
+    if isinstance(global_n, int):
+        if offset < global_n <= offset + line_count:
+            return global_n - offset # 1-based local index
+        return -1 # skip
+        
+    if isinstance(global_n, tuple):
+        start, end = global_n
+        line_start = max(start, offset + 1)
+        line_end = min(end, offset + line_count)
+        if line_start <= line_end:
+            return (line_start - offset, line_end - offset)
+        return -1
+        
+    return -1
 
-def _write(path: str, content: str) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(content)
+def _process_stream(
+    path: str, dest: str, 
+    operation: str, word: str, repl: str = "",
+    word_b: str = "",
+    n: int | tuple[int, int] | None = None,
+    case_sensitive: bool = True,
+    normalize: bool = True
+) -> dict:
+    """Process a file line-by-line for memory-safe O(1) mutations."""
+    import tempfile
+    
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File not found: {path}")
+        
+    os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
+    temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(dest)), text=True)
+    
+    original_count = 0
+    result_count = 0
+    
+    try:
+        with os.fdopen(temp_fd, "w", encoding="utf-8") as out_fh, \
+             open(path, "r", encoding="utf-8") as in_fh:
+                 
+            # Guard empty files
+            first_line = in_fh.read(1)
+            if not first_line:
+                raise EmptyInputError(f"file '{path}'")
+            # reset pointer
+            in_fh.seek(0)
+            
+            for line in in_fh:
+                line_count = count(line, word, case_sensitive)
+                
+                if operation == "swap":
+                    if line_count > 0 or count(line, word_b, case_sensitive) > 0:
+                        out_fh.write(swap(line, word, word_b, case_sensitive, normalize))
+                    else:
+                        out_fh.write(line)
+                    continue
+                    
+                if line_count == 0:
+                    out_fh.write(line)
+                    continue
+                    
+                mapped_n = _map_n(n, original_count, line_count)
+                original_count += line_count
+                
+                if mapped_n == -1:
+                    out_fh.write(line)
+                    result_count += line_count
+                else:
+                    if operation == "remove":
+                        new_line = remove(line, word, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize)
+                    else:
+                        new_line = replace(line, word, repl, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize)
+                        
+                    result_count += count(new_line, word, case_sensitive)
+                    out_fh.write(new_line)
+                    
+        os.replace(temp_path, dest)
+    except Exception:
+        os.unlink(temp_path)
+        raise
+        
+    if operation == "swap":
+        return {"out": dest}
+    return {"original_count": original_count, "result_count": result_count, "out": dest}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -43,7 +127,13 @@ def _write(path: str, content: str) -> None:
 
 def file_count(path: str, word: str, case_sensitive: bool = True) -> int:
     """Count occurrences of *word* in a file."""
-    return count(_read(path), word, case_sensitive)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File not found: {path}")
+    total = 0
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            total += count(line, word, case_sensitive)
+    return total
 
 
 def file_find(
@@ -57,7 +147,17 @@ def file_positions(
     path: str, word: str, case_sensitive: bool = True
 ) -> list[tuple[int, int]]:
     """Return ``(start, end)`` positions for every occurrence in a file."""
-    return positions(_read(path), word, case_sensitive)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File not found: {path}")
+    all_pos = []
+    current_offset = 0
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            line_pos = positions(line, word, case_sensitive)
+            if line_pos:
+                all_pos.extend([(s + current_offset, e + current_offset) for s, e in line_pos])
+            current_offset += len(line)
+    return all_pos
 
 
 # ─────────────────────────────────────────────────────────────
@@ -86,12 +186,11 @@ def file_remove(
     Returns:
         ``{"original_count": int, "result_count": int, "out": str}``
     """
-    content  = _read(path)
-    original = count(content, word, case_sensitive)
-    result   = remove(content, word, n=n, case_sensitive=case_sensitive, normalize=normalize)
-    dest     = out or path
-    _write(dest, result)
-    return {"original_count": original, "result_count": count(result, word, case_sensitive), "out": dest}
+    dest = out or path
+    return _process_stream(
+        path, dest, "remove", word, n=n, 
+        case_sensitive=case_sensitive, normalize=normalize
+    )
 
 
 def file_replace(
@@ -118,12 +217,11 @@ def file_replace(
     Returns:
         ``{"original_count": int, "result_count": int, "out": str}``
     """
-    content  = _read(path)
-    original = count(content, word, case_sensitive)
-    result   = replace(content, word, repl, n=n, case_sensitive=case_sensitive, normalize=normalize)
-    dest     = out or path
-    _write(dest, result)
-    return {"original_count": original, "result_count": count(result, word, case_sensitive), "out": dest}
+    dest = out or path
+    return _process_stream(
+        path, dest, "replace", word, repl=repl, n=n, 
+        case_sensitive=case_sensitive, normalize=normalize
+    )
 
 
 def file_swap(
@@ -148,11 +246,11 @@ def file_swap(
     Returns:
         ``{"out": str}``
     """
-    content = _read(path)
-    result  = swap(content, word_a, word_b, case_sensitive, normalize=normalize)
-    dest    = out or path
-    _write(dest, result)
-    return {"out": dest}
+    dest = out or path
+    return _process_stream(
+        path, dest, "swap", word_a, word_b=word_b, 
+        case_sensitive=case_sensitive, normalize=normalize
+    )
 
 
 # ─────────────────────────────────────────────────────────────
