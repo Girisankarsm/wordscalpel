@@ -52,6 +52,10 @@ from wordscalpel.adapters import (
     replace_json,
     process_csv,
 )
+from wordscalpel.plugins import (
+    process,
+    register_adapter,
+)
 from wordscalpel.exceptions import (
     WordscalpelError,
     OccurrenceNotFoundError,
@@ -85,6 +89,9 @@ __all__ = [
     "remove_json",
     "replace_json",
     "process_csv",
+    # ── plugins ───────────────────────────
+    "process",
+    "register_adapter",
     # ── exceptions ────────────────────────
     "WordscalpelError",
     "OccurrenceNotFoundError",

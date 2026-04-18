@@ -14,6 +14,7 @@ from typing import Any
 
 from wordscalpel.core import count, remove, replace, swap
 from wordscalpel.file_ops import _map_n
+from wordscalpel.plugins import register_adapter
 
 class _StatefulObjProcessor:
     """Traverses an object and applies tracked word operations across string values."""
@@ -74,6 +75,19 @@ class _StatefulObjProcessor:
 #  Python Object Gateways
 # ─────────────────────────────────────────────────────────────
 
+@register_adapter("obj")
+def process_obj_adapter(obj: Any, operation: str, word: str, **kwargs) -> Any:
+    """Central gateway for object tree manipulation via the plugin router."""
+    if operation == "count":
+        p = _StatefulObjProcessor("count", word, **kwargs)
+        # Traverse does not return count structurally. For counts, we run a custom path.
+        # Wait, if count is requested centrally, we can return the seen_count after traversing it!
+        p.traverse(obj)
+        return p.seen_count
+    else:
+        p = _StatefulObjProcessor(operation, word, **kwargs)
+        return p.traverse(obj)
+
 def remove_obj(obj: Any, word: str, n: int | tuple[int, int] | None = None, case_sensitive: bool = True, normalize: bool = True) -> Any:
     """Recursively clean occurrences of word from all string values in dict/list."""
     p = _StatefulObjProcessor("remove", word, n=n, case_sensitive=case_sensitive, normalize=normalize)
@@ -88,6 +102,19 @@ def replace_obj(obj: Any, word: str, repl: str, n: int | tuple[int, int] | None 
 # ─────────────────────────────────────────────────────────────
 #  JSON String Gateways
 # ─────────────────────────────────────────────────────────────
+
+@register_adapter("json")
+def process_json_adapter(json_str: str, operation: str, word: str, **kwargs) -> str:
+    """Safely parse JSON, traverse globally, and rebuild JSON."""
+    data = json.loads(json_str)
+    # Re-route to the obj adapter handling!
+    processed = process_obj_adapter(data, operation, word, **kwargs)
+    
+    # If the user requested count, we don't rebuild json. Just return the integer.
+    if operation == "count":
+        return processed
+        
+    return json.dumps(processed)
 
 def remove_json(json_str: str, word: str, n: int | tuple[int, int] | None = None, case_sensitive: bool = True, normalize: bool = True, **json_kwargs) -> str:
     """Safely parse JSON, remove word from its strings globally, and rebuild JSON."""
@@ -107,19 +134,28 @@ def replace_json(json_str: str, word: str, repl: str, n: int | tuple[int, int] |
 #  CSV Streaming Gateways
 # ─────────────────────────────────────────────────────────────
 
-def process_csv(
-    in_path: str, out_path: str,
-    operation: str, word: str, repl: str = "",
-    column: str | int | None = None,
-    n: int | tuple[int, int] | None = None,
-    case_sensitive: bool = True,
-    normalize: bool = True
+@register_adapter("csv")
+def process_csv_adapter(
+    data: dict[str, str], # Uses a dict wrapper mapping keys for CSV arguments
+    operation: str, word: str, **kwargs
 ) -> None:
     """
     Stream a CSV line-by-line, targeting operations either to a specific column globally,
     or across all cells. Memory remains O(1) safe.
+    
+    Expected `data` struct format: {"in_path": "input.csv", "out_path": "output.csv"}
     """
     import tempfile
+    
+    in_path = data.get("in_path")
+    if not in_path:
+        raise ValueError("Missing 'in_path' in data payload for CSV adapter.")
+    out_path = data.get("out_path", in_path)
+    column = kwargs.pop("column", None)
+    repl = kwargs.pop("repl", "")
+    n = kwargs.pop("n", None)
+    case_sensitive = kwargs.pop("case_sensitive", True)
+    normalize = kwargs.pop("normalize", True)
     
     os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
     temp_fd, temp_file = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(out_path)), text=True)
@@ -160,3 +196,7 @@ def process_csv(
     except Exception:
         os.unlink(temp_file)
         raise
+
+def process_csv(in_path: str, out_path: str, operation: str, word: str, **kwargs) -> None:
+    """Convenience functional wrapper for the CSV adapter."""
+    process_csv_adapter({"in_path": in_path, "out_path": out_path}, operation, word, **kwargs)
