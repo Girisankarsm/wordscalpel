@@ -57,7 +57,8 @@ def _process_stream(
     word_b: str = "",
     n: int | tuple[int, int] | None = None,
     case_sensitive: bool = True,
-    normalize: bool = True
+    normalize: bool = True,
+    dry_run: bool = False
 ) -> dict:
     """Process a file line-by-line for memory-safe O(1) mutations."""
     import tempfile
@@ -67,6 +68,11 @@ def _process_stream(
         
     os.makedirs(os.path.dirname(os.path.abspath(dest)) or ".", exist_ok=True)
     temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(dest)), text=True)
+    
+    if dry_run:
+        import sys
+        sys.stdout.write(f"--- [DRY RUN] {path} ---\n")
+        sys.stdout.write(f"+++ [DRY RUN] {dest} ---\n")
     
     original_count = 0
     result_count = 0
@@ -87,20 +93,26 @@ def _process_stream(
                 
                 if operation == "swap":
                     if line_count > 0 or count(line, word_b, case_sensitive) > 0:
-                        out_fh.write(swap(line, word, word_b, case_sensitive, normalize))
+                        new_line = swap(line, word, word_b, case_sensitive, normalize)
+                        if dry_run:
+                            import sys
+                            sys.stdout.write(f"\033[31m- {line}\033[0m")
+                            sys.stdout.write(f"\033[32m+ {new_line}\033[0m")
+                        else:
+                            out_fh.write(new_line)
                     else:
-                        out_fh.write(line)
+                        if not dry_run: out_fh.write(line)
                     continue
                     
                 if line_count == 0:
-                    out_fh.write(line)
+                    if not dry_run: out_fh.write(line)
                     continue
                     
                 mapped_n = _map_n(n, original_count, line_count)
                 original_count += line_count
                 
                 if mapped_n == -1:
-                    out_fh.write(line)
+                    if not dry_run: out_fh.write(line)
                     result_count += line_count
                 else:
                     if operation == "remove":
@@ -109,9 +121,15 @@ def _process_stream(
                         new_line = replace(line, word, repl, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize)
                         
                     result_count += count(new_line, word, case_sensitive)
-                    out_fh.write(new_line)
-                    
-        os.replace(temp_path, dest)
+                    if dry_run:
+                        import sys
+                        sys.stdout.write(f"\033[31m- {line}\033[0m")
+                        sys.stdout.write(f"\033[32m+ {new_line}\033[0m")
+                    else:
+                        out_fh.write(new_line)
+                        
+        if not dry_run:
+            os.replace(temp_path, dest)
     except Exception:
         os.unlink(temp_path)
         raise
@@ -171,6 +189,7 @@ def file_remove(
     out: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    dry_run: bool = False,
 ) -> dict:
     """
     Remove occurrences of *word* from a file.
@@ -189,7 +208,7 @@ def file_remove(
     dest = out or path
     return _process_stream(
         path, dest, "remove", word, n=n, 
-        case_sensitive=case_sensitive, normalize=normalize
+        case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run
     )
 
 
@@ -201,6 +220,7 @@ def file_replace(
     out: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    dry_run: bool = False,
 ) -> dict:
     """
     Replace occurrences of *word* with *repl* in a file.
@@ -220,7 +240,7 @@ def file_replace(
     dest = out or path
     return _process_stream(
         path, dest, "replace", word, repl=repl, n=n, 
-        case_sensitive=case_sensitive, normalize=normalize
+        case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run
     )
 
 
@@ -231,6 +251,7 @@ def file_swap(
     out: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    dry_run: bool = False,
 ) -> dict:
     """
     Swap *word_a* ↔ *word_b* throughout a file.
@@ -249,7 +270,7 @@ def file_swap(
     dest = out or path
     return _process_stream(
         path, dest, "swap", word_a, word_b=word_b, 
-        case_sensitive=case_sensitive, normalize=normalize
+        case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run
     )
 
 
@@ -270,6 +291,7 @@ def process_file(
     swap_with: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    dry_run: bool = False,
 ) -> dict:
     """
     Unified gateway — kept for CLI and backwards compatibility.
@@ -279,15 +301,15 @@ def process_file(
     _n = (start_n, end_n) if (start_n and end_n) else n
 
     if operation in ("remove", "remove_range"):
-        return file_remove(input_path, word, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize)
+        return file_remove(input_path, word, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run)
 
     elif operation in ("replace", "replace_range"):
-        return file_replace(input_path, word, replacement, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize)
+        return file_replace(input_path, word, replacement, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run)
 
     elif operation == "swap":
         if swap_with is None:
             raise ValueError("swap operation requires swap_with.")
-        return file_swap(input_path, word, swap_with, out=output_path, case_sensitive=case_sensitive, normalize=normalize)
+        return file_swap(input_path, word, swap_with, out=output_path, case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run)
 
     else:
         valid = ("remove", "remove_range", "replace", "replace_range", "swap")

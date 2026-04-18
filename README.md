@@ -34,6 +34,17 @@ Standard Python `.replace()` and Regex are blind—they either replace everythin
 *   **Perfect Safety:** Synchronous word-swapping absolutely prevents "double-replace" collision traps.
 *   **Zero Dependencies**: Built entirely using the Python standard library.
 
+### 🛡️ Structured Capability Matrix
+
+`wordscalpel` handles formats with precise awareness of structural memory scale constraints:
+
+| Format   | Streaming Engine | Memory Safe | Notes |
+| :------- | :--------------: | :---------: | :---- |
+| **Text Files (.log, .txt)** | ✅ Yes | ✅ Yes | O(1) Memory row-by-row stream. Perfect for standard massive files. |
+| **CSV**          | ✅ Yes | ✅ Yes | O(1) streaming using standard Python `csv` module row-by-row parsing. |
+| **JSON**         | ❌ No  | ⚠️ Varies | Uses `json.loads`. Safe for metadata chunks, but loads structure into memory. |
+| **Python Objects** | N/A | ⚠️ Varies | Safely recurses through loaded active memory objects. |
+
 ---
 
 ## 📦 Installation
@@ -101,11 +112,9 @@ Every core function has a `file_*` counterpart that safely mutates massive files
 ```python
 from wordscalpel.file_ops import file_count, file_remove, file_replace, file_swap
 
-# Process a multi-gigabyte log in milliseconds
-file_remove("giant_input.log", "PASSWORD_HASH", n=None, out="sanitized.log")
-
-# Count targets without crashing RAM
-total = file_count("input.txt", "error")
+# ONE KILLER DEMO: Safely scrub 15,000 deep targets off a 5GB 
+# streaming file without loading it to RAM or affecting JSON brackets
+file_remove("massive_production_export.log", "PASSWORD_HASH", n=(10000, 25000))
 
 # Change specific variable definitions safely inline
 file_replace("input.py", "deprecated_var", "new_var", n=2)

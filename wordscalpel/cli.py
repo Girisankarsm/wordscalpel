@@ -81,7 +81,7 @@ def cmd_remove(args: argparse.Namespace) -> None:
         out = args.output or args.file
         op, kw = _remove_op_kwargs(args)
         result = ws.process_file(
-            args.file, out, args.word, operation=op, case_sensitive=cs, **kw
+            args.file, out, args.word, operation=op, case_sensitive=cs, dry_run=args.dry_run, **kw
         )
         removed = result["original_count"] - result["result_count"]
         print(f"Removed {removed} occurrence(s). Output: {result['output_path']}")
@@ -98,7 +98,7 @@ def cmd_replace(args: argparse.Namespace) -> None:
         out = args.output or args.file
         op, kw = _replace_op_kwargs(args, replacement)
         result = ws.process_file(
-            args.file, out, args.word, operation=op, case_sensitive=cs, **kw
+            args.file, out, args.word, operation=op, case_sensitive=cs, dry_run=args.dry_run, **kw
         )
         changed = result["original_count"] - result["result_count"]
         print(f"Replaced {result['original_count'] - result['result_count']} occurrence(s). "
@@ -116,7 +116,7 @@ def cmd_swap(args: argparse.Namespace) -> None:
         out = args.output or args.file
         result = ws.process_file(
             args.file, out, args.word,
-            operation="swap", swap_with=swap_with, case_sensitive=cs,
+            operation="swap", swap_with=swap_with, case_sensitive=cs, dry_run=args.dry_run,
         )
         print(f"Swapped '{args.word}' ↔ '{swap_with}'. Output: {result['output_path']}")
     else:
@@ -187,6 +187,7 @@ def _common_args(p: argparse.ArgumentParser, *, has_output: bool = False) -> Non
     p.add_argument("--word",        required=True, help="Target word")
     p.add_argument("--file",        metavar="PATH", help="Input file (omit to read stdin)")
     p.add_argument("--ignore-case", action="store_true", help="Case-insensitive matching")
+    p.add_argument("--dry-run",     action="store_true", help="Print changes without modifying files")
     if has_output:
         p.add_argument("--output", metavar="PATH",
                        help="Output file (default: overwrite --file)")
