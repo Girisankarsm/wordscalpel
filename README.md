@@ -7,6 +7,9 @@
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
   <p>
+    <strong>Designed for large-scale, structure-safe text transformations with streaming support.</strong>
+  </p>
+  <p>
     <em>Log sanitization, document redaction, and content pipelines often need precise word-level control that Python's standard library doesn't provide. <br><code>wordscalpel</code> solves that permanently.</em>
   </p>
 </div>
