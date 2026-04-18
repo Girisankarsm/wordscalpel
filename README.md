@@ -17,9 +17,22 @@
 
 Standard Python `.replace()` and Regex are blind—they either replace everything, the first occurrence, or require complex error-prone patterns. `wordscalpel` allows you to target **exact integer occurrences or ranges**, swap terms cleanly, and stream 10GB files without breaking a sweat.
 
+### 🆚 How it compares
+
+| Feature | `wordscalpel` | Standard `.replace()` | Regex (`re.sub`) | `sed` (CLI) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Replace $N$th occurrence** | ✅ Native | ❌ No | ⚠️ Complex logic | ⚠️ Awkward syntax |
+| **Replace occurrence ranges** | ✅ Native | ❌ No | ❌ No | ⚠️ Very hard |
+| **Simultaneous A↔B Swap** | ✅ Native | ❌ Breaks on overlap | ⚠️ Custom functions | ⚠️ Difficult |
+| **Smart Space Cleanup** | ✅ Native | ❌ No | ⚠️ Manual patterns | ⚠️ Manual patterns |
+| **O(1) Memory Streaming** | ✅ Native | ❌ Loads entire string | ❌ Loads entire string | ✅ Yes |
+| **Indentation Safe** | ✅ Yes | ❌ Blind wipe | ⚠️ Manual Lookbehinds | ⚠️ Blind wipe |
+
+### 🎯 Core Capabilities
 *   **Intelligent Space Normalization:** Safely swallows extra bounding spaces upon deletion to preserve code alignments, without breaking text structure or indentation.
 *   **O(1) Streaming Engine:** Never loads massive `.log` or `.sql` files into memory; files are operated on dynamically chunk-by-chunk for unmatched speed.
 *   **Perfect Safety:** Synchronous word-swapping absolutely prevents "double-replace" collision traps.
+*   **Zero Dependencies**: Built entirely using the Python standard library.
 
 ---
 
