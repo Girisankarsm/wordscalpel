@@ -133,8 +133,8 @@ def _stdin() -> str:
 
 def _read_source(args: argparse.Namespace) -> str:
     if args.file:
-        from wordscalpel.file_ops import _read_file
-        return _read_file(args.file)
+        from wordscalpel.file_ops import _read
+        return _read(args.file)
     return _stdin()
 
 
