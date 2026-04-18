@@ -44,7 +44,7 @@ from wordscalpel.exceptions import WordscalpelError
 
 def cmd_count(args: argparse.Namespace) -> None:
     if args.file:
-        count = ws.file_count_occurrences(
+        count = ws.file_count(
             args.file, args.word, not args.ignore_case
         )
     else:
@@ -56,7 +56,7 @@ def cmd_count(args: argparse.Namespace) -> None:
 
 def cmd_find(args: argparse.Namespace) -> None:
     text = _read_source(args)
-    matches = ws.find_all(text, args.word, not args.ignore_case, context=args.context)
+    matches = ws.find(text, args.word, not args.ignore_case, context=args.context)
     if not matches:
         print(f"No occurrences of '{args.word}' found.")
         return
@@ -66,7 +66,7 @@ def cmd_find(args: argparse.Namespace) -> None:
 
 def cmd_positions(args: argparse.Namespace) -> None:
     text = _read_source(args)
-    positions = ws.get_positions(text, args.word, not args.ignore_case)
+    positions = ws.positions(text, args.word, not args.ignore_case)
     if not positions:
         print(f"No occurrences of '{args.word}' found.")
         return
