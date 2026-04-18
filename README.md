@@ -60,14 +60,14 @@ pip install wordscalpel
 
 ## 💻 CLI Tools
 
-Use the `wordscalpel` binary right from your terminal without opening Python!
+Use the `wordscalpel` binary right from your terminal without opening Python! Note that every command safely supports `--dry-run` to print colorized terminal diffs of changes without mutating disk files.
 
 ```bash
 # 1. Remove the EXACT 2nd occurrence of 'error' from a log
 wordscalpel remove --word "error" --n 2 --file server.log --output out.log
 
-# 2. Re-write the first 5 occurrences 
-wordscalpel replace --word "DEBUG" --with "INFO" --range 1 5 --file server.log
+# 2. Re-write the first 5 occurrences (Preview changes safely via dry-run)
+wordscalpel replace --word "DEBUG" --with "INFO" --range 1 5 --file server.log --dry-run
 
 # 3. Swap variables simultaneously everywhere
 wordscalpel swap --word "cat" --swap-with "dog" --file input.txt
@@ -104,6 +104,27 @@ ws.swap("cat chased dog", "cat", "dog") # → "dog chased cat"
 ```python
 # Un-normalized raw mode (protects exact consecutive space-counts)
 ws.remove("a b a c", "a", normalize=False)  # → " b  c "
+```
+
+---
+
+## 🔌 Plugin Architecture (Extensibility)
+
+`wordscalpel` is an ecosystem. You can register custom data format adapters internally without modifying the library!
+
+```python
+import wordscalpel as ws
+import yaml
+
+@ws.register_adapter("yaml")
+def process_yaml(data: str, operation: str, word: str, **kwargs):
+    parsed = yaml.safe_load(data)
+    # Securely invoke our internal recursive object traverser
+    processed = ws.remove_obj(parsed, word, **kwargs)
+    return yaml.dump(processed)
+
+# Now it flows securely through the main engine routing
+ws.process(open("config.yml").read(), "remove", "password", adapter="yaml")
 ```
 
 ---

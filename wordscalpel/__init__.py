@@ -63,7 +63,7 @@ from wordscalpel.exceptions import (
     EmptyInputError,
 )
 
-__version__ = "2.0.4"
+__version__ = "2.0.5"
 __author__  = "wordscalpel contributors"
 __license__ = "MIT"
 
