@@ -42,9 +42,15 @@ from wordscalpel.file_ops import (
     file_count,
     file_find,
     file_positions,
-    file_remove,
     file_replace,
     file_swap,
+)
+from wordscalpel.adapters import (
+    remove_obj,
+    replace_obj,
+    remove_json,
+    replace_json,
+    process_csv,
 )
 from wordscalpel.exceptions import (
     WordscalpelError,
@@ -73,6 +79,12 @@ __all__ = [
     "file_remove",
     "file_replace",
     "file_swap",
+    # ── adapters ──────────────────────────
+    "remove_obj",
+    "replace_obj",
+    "remove_json",
+    "replace_json",
+    "process_csv",
     # ── exceptions ────────────────────────
     "WordscalpelError",
     "OccurrenceNotFoundError",
