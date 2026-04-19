@@ -74,6 +74,7 @@ def _delete(text: str, spans: list[tuple[int, int]], smart_space: bool = False, 
     SAFE_PUNCT = {":", ",", ".", ";", "!", "?"}
     PAIRS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'"}
     for s, e in reversed(spans):
+        skip = False
         if boundary_mode != "strict":
             is_safe = boundary_mode in ("safe", "smart", "on", "balanced", "aggressive")
             is_balanced = boundary_mode in ("balanced", "aggressive")
@@ -93,10 +94,21 @@ def _delete(text: str, spans: list[tuple[int, int]], smart_space: bool = False, 
                     e += 1
                 elif right_char in SAFE_PUNCT:
                     e += 1
+                
+                if boundary_mode == "balanced" and s > 0 and e < len(text) and text[s-1] in ' \t' and text[e] in ' \t':
+                    l_scan = s - 1
+                    while l_scan >= 0 and text[l_scan] in ' \t': l_scan -= 1
+                    r_scan = e
+                    while r_scan < len(text) and text[r_scan] in ' \t': r_scan += 1
+                    if l_scan >= 0 and r_scan < len(text) and text[l_scan] in PAIRS and text[r_scan] == PAIRS[text[l_scan]]:
+                        skip = True
             elif is_safe:
                 if right_char in SAFE_PUNCT:
                     e += 1
-                
+                    
+        if skip:
+            continue
+            
         if smart_space:
             left_space = s > 0 and text[s-1] in ' \t'
             right_space = e < len(text) and text[e] in ' \t'
@@ -130,6 +142,7 @@ def _substitute(
     PAIRS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'"}
     result, offset = text, 0
     for s, e in spans:
+        skip = False
         if boundary_mode != "strict":
             is_safe = boundary_mode in ("safe", "smart", "on", "balanced", "aggressive")
             is_balanced = boundary_mode in ("balanced", "aggressive")
@@ -149,9 +162,20 @@ def _substitute(
                     e += 1
                 elif right_char in SAFE_PUNCT:
                     e += 1
+                
+                if boundary_mode == "balanced" and s > 0 and e < len(text) and text[s-1] in ' \t' and text[e] in ' \t':
+                    l_scan = s - 1
+                    while l_scan >= 0 and text[l_scan] in ' \t': l_scan -= 1
+                    r_scan = e
+                    while r_scan < len(text) and text[r_scan] in ' \t': r_scan += 1
+                    if l_scan >= 0 and r_scan < len(text) and text[l_scan] in PAIRS and text[r_scan] == PAIRS[text[l_scan]]:
+                        skip = True
             elif is_safe:
                 if right_char in SAFE_PUNCT:
                     e += 1
+
+        if skip:
+            continue
 
         s += offset
         e += offset
