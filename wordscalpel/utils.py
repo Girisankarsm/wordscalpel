@@ -14,7 +14,7 @@ def build_word_pattern(word: str, case_sensitive: bool = True) -> re.Pattern:
     """
     escaped = re.escape(word)
     # Match word surrounded by non-alphanumeric chars or string boundaries
-    pattern = r'(?<![a-zA-Z0-9])' + escaped + r'(?![a-zA-Z0-9])'
+    pattern = r'(?<![a-zA-Z0-9_])' + escaped + r'(?![a-zA-Z0-9_])'
     flags = 0 if case_sensitive else re.IGNORECASE
     return re.compile(pattern, flags)
 
