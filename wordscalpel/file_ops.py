@@ -58,6 +58,7 @@ def _process_stream(
     n: int | tuple[int, int] | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    boundary_mode: str = "strict",
     dry_run: bool = False
 ) -> dict:
     """Process a file line-by-line for memory-safe O(1) mutations."""
@@ -116,9 +117,9 @@ def _process_stream(
                     result_count += line_count
                 else:
                     if operation == "remove":
-                        new_line = remove(line, word, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize)
+                        new_line = remove(line, word, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
                     else:
-                        new_line = replace(line, word, repl, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize)
+                        new_line = replace(line, word, repl, n=mapped_n, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
                         
                     result_count += count(new_line, word, case_sensitive)
                     if dry_run:
@@ -189,6 +190,7 @@ def file_remove(
     out: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    boundary_mode: str = "strict",
     dry_run: bool = False,
 ) -> dict:
     """
@@ -208,7 +210,7 @@ def file_remove(
     dest = out or path
     return _process_stream(
         path, dest, "remove", word, n=n, 
-        case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run
+        case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode, dry_run=dry_run
     )
 
 
@@ -220,6 +222,7 @@ def file_replace(
     out: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    boundary_mode: str = "strict",
     dry_run: bool = False,
 ) -> dict:
     """
@@ -240,7 +243,7 @@ def file_replace(
     dest = out or path
     return _process_stream(
         path, dest, "replace", word, repl=repl, n=n, 
-        case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run
+        case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode, dry_run=dry_run
     )
 
 
@@ -291,6 +294,7 @@ def process_file(
     swap_with: str | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    boundary_mode: str = "strict",
     dry_run: bool = False,
 ) -> dict:
     """
@@ -301,10 +305,10 @@ def process_file(
     _n = (start_n, end_n) if (start_n and end_n) else n
 
     if operation in ("remove", "remove_range"):
-        return file_remove(input_path, word, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run)
+        return file_remove(input_path, word, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode, dry_run=dry_run)
 
     elif operation in ("replace", "replace_range"):
-        return file_replace(input_path, word, replacement, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize, dry_run=dry_run)
+        return file_replace(input_path, word, replacement, n=_n, out=output_path, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode, dry_run=dry_run)
 
     elif operation == "swap":
         if swap_with is None:

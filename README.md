@@ -1,6 +1,6 @@
 <div align="center">
   <h1>wordscalpel 🔪</h1>
-  <p><strong>Surgical, occurrence-based word manipulation for strings and files.</strong></p>
+  <p><strong>A streaming, occurrence-aware, structure-safe text transformation engine with configurable boundary semantics.</strong></p>
 
   [![PyPI version](https://badge.fury.io/py/wordscalpel.svg)](https://pypi.org/project/wordscalpel/)
   [![Python Versions](https://img.shields.io/pypi/pyversions/wordscalpel.svg)](https://pypi.org/project/wordscalpel/)
@@ -10,7 +10,7 @@
     <strong>Designed for large-scale, structure-safe text transformations with streaming support.</strong>
   </p>
   <p>
-    <em>Log sanitization, document redaction, and content pipelines often need precise word-level control that Python's standard library doesn't provide. <br><code>wordscalpel</code> solves that permanently.</em>
+    <em>Log sanitization, document redaction, and content pipelines often need precise structure-aware control that Python's standard library doesn't provide. <br><code>wordscalpel</code> solves that permanently.</em>
   </p>
 </div>
 
@@ -34,7 +34,7 @@ Standard Python `.replace()` and Regex are blind—they either replace everythin
 ### 🎯 Core Capabilities
 *   **Intelligent Space Normalization:** Safely swallows extra bounding spaces upon deletion to preserve code alignments, without breaking text structure or indentation.
 *   **O(1) Streaming Engine:** Never loads massive `.log` or `.sql` files into memory; files are operated on dynamically chunk-by-chunk for unmatched speed.
-*   **Perfect Safety:** Synchronous word-swapping absolutely prevents "double-replace" collision traps.
+*   **Configurable Safety Levels:** Synchronous word-swapping and flexible boundary modes predictably prevent collision traps and unintended syntax breaks.
 *   **Zero Dependencies**: Built entirely using the Python standard library.
 
 ### 🛡️ Structured Capability Matrix
@@ -99,6 +99,23 @@ ws.remove(text, "the", n=(1, 2))    # Remove 1st and 2nd
 ws.replace(text, "the", "a", n=2)   # → "the cat sat on a mat near the hat"
 ws.swap("cat chased dog", "cat", "dog") # → "dog chased cat"
 ```
+
+### 🛡️ Configurable Boundary Semantics
+Boundary modes define how wordscalpel interacts precisely with surrounding punctuation.
+
+- `strict` (default):
+  Safe, literal word removal. No punctuation or structure is modified.
+
+- `safe`:
+  Removes only trailing safe punctuation (`: , . ; ! ?`). Fully structure-safe.
+
+- `balanced`:
+  Removes paired punctuation only when perfectly mirrored (e.g., `(ERROR)`).
+  ⚠️ May affect syntax in structured code (e.g., commas, arguments).
+
+- `aggressive`:
+  Removes all adjacent punctuation without validation.
+  ⚠️ Unsafe for code. Intended for raw text/log cleanup only.
 
 ### Advanced Control (Space Targeting)
 ```python

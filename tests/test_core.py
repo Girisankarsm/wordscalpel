@@ -283,3 +283,16 @@ class TestSwapWords:
     def test_empty_text_raises(self):
         with pytest.raises(EmptyInputError):
             swap_words("", "cat", "dog")
+
+
+# ── Boundary Modes ─────────────────────────────────────────────────────────────
+
+class TestBoundaryModes:
+    def test_syntax_edge(self):
+        assert remove_all_occurrences('print("ERROR", x)', "ERROR", boundary_mode="balanced") == 'print(, x)'
+
+    def test_adjacency_check(self):
+        assert remove_all_occurrences("( ERROR )", "ERROR", boundary_mode="balanced") == "( ERROR )"
+
+    def test_identifier_safety(self):
+        assert remove_all_occurrences("ERROR_code", "ERROR") == "ERROR_code"

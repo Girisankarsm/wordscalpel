@@ -69,9 +69,34 @@ def _resolve_n(
     return [spans[n - 1]]
 
 
-def _delete(text: str, spans: list[tuple[int, int]], smart_space: bool = False) -> str:
+def _delete(text: str, spans: list[tuple[int, int]], smart_space: bool = False, boundary_mode: str = "strict") -> str:
     chars = list(text)
+    SAFE_PUNCT = {":", ",", ".", ";", "!", "?"}
+    PAIRS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'"}
     for s, e in reversed(spans):
+        if boundary_mode != "strict":
+            is_safe = boundary_mode in ("safe", "smart", "on", "balanced", "aggressive")
+            is_balanced = boundary_mode in ("balanced", "aggressive")
+            is_aggressive = boundary_mode == "aggressive"
+            
+            left_char = text[s-1] if s > 0 else ""
+            right_char = text[e] if e < len(text) else ""
+            
+            if is_aggressive:
+                if right_char in SAFE_PUNCT or right_char in PAIRS.values():
+                    e += 1
+                if left_char in PAIRS:
+                    s -= 1
+            elif is_balanced:
+                if left_char in PAIRS and right_char == PAIRS[left_char]:
+                    s -= 1
+                    e += 1
+                elif right_char in SAFE_PUNCT:
+                    e += 1
+            elif is_safe:
+                if right_char in SAFE_PUNCT:
+                    e += 1
+                
         if smart_space:
             left_space = s > 0 and text[s-1] in ' \t'
             right_space = e < len(text) and text[e] in ' \t'
@@ -96,13 +121,38 @@ def _delete(text: str, spans: list[tuple[int, int]], smart_space: bool = False) 
 
 
 def _substitute(
-    text: str, spans: list[tuple[int, int]], repl: str, smart_space: bool = False
+    text: str, spans: list[tuple[int, int]], repl: str, smart_space: bool = False, boundary_mode: str = "strict"
 ) -> str:
-    if repl == "" and smart_space:
-        return _delete(text, spans, smart_space=True)
+    if repl == "" and (smart_space or boundary_mode in ("smart", "on", "safe", "balanced", "aggressive")):
+        return _delete(text, spans, smart_space=True, boundary_mode=boundary_mode)
         
+    SAFE_PUNCT = {":", ",", ".", ";", "!", "?"}
+    PAIRS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'"}
     result, offset = text, 0
     for s, e in spans:
+        if boundary_mode != "strict":
+            is_safe = boundary_mode in ("safe", "smart", "on", "balanced", "aggressive")
+            is_balanced = boundary_mode in ("balanced", "aggressive")
+            is_aggressive = boundary_mode == "aggressive"
+            
+            left_char = text[s-1] if s > 0 else ""
+            right_char = text[e] if e < len(text) else ""
+            
+            if is_aggressive:
+                if right_char in SAFE_PUNCT or right_char in PAIRS.values():
+                    e += 1
+                if left_char in PAIRS:
+                    s -= 1
+            elif is_balanced:
+                if left_char in PAIRS and right_char == PAIRS[left_char]:
+                    s -= 1
+                    e += 1
+                elif right_char in SAFE_PUNCT:
+                    e += 1
+            elif is_safe:
+                if right_char in SAFE_PUNCT:
+                    e += 1
+
         s += offset
         e += offset
         result = result[:s] + repl + result[e:]
@@ -199,6 +249,7 @@ def remove(
     n: int | tuple[int, int] | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    boundary_mode: str = "strict",
 ) -> str:
     """
     Remove occurrences of *word* from *text*.
@@ -234,7 +285,7 @@ def remove(
     """
     all_spans = _spans(text, word, case_sensitive)
     target    = _resolve_n(all_spans, word, n)
-    return _delete(text, target, smart_space=normalize)
+    return _delete(text, target, smart_space=normalize, boundary_mode=boundary_mode)
 
 
 def replace(
@@ -244,6 +295,7 @@ def replace(
     n: int | tuple[int, int] | None = None,
     case_sensitive: bool = True,
     normalize: bool = True,
+    boundary_mode: str = "strict",
 ) -> str:
     """
     Replace occurrences of *word* with *repl*.
@@ -280,7 +332,7 @@ def replace(
     """
     all_spans = _spans(text, word, case_sensitive)
     target    = _resolve_n(all_spans, word, n)
-    return _substitute(text, target, repl, smart_space=normalize)
+    return _substitute(text, target, repl, smart_space=normalize, boundary_mode=boundary_mode)
 
 
 def swap(
@@ -341,22 +393,22 @@ count_occurrences        = count
 find_all                 = find
 get_positions            = positions
 
-def remove_occurrence(text, word, n, case_sensitive=True, normalize=True):
-    return remove(text, word, n=n, case_sensitive=case_sensitive, normalize=normalize)
+def remove_occurrence(text, word, n, case_sensitive=True, normalize=True, boundary_mode="strict"):
+    return remove(text, word, n=n, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
 
-def remove_occurrence_range(text, word, start_n, end_n, case_sensitive=True, normalize=True):
-    return remove(text, word, n=(start_n, end_n), case_sensitive=case_sensitive, normalize=normalize)
+def remove_occurrence_range(text, word, start_n, end_n, case_sensitive=True, normalize=True, boundary_mode="strict"):
+    return remove(text, word, n=(start_n, end_n), case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
 
-def remove_all_occurrences(text, word, case_sensitive=True, normalize=True):
-    return remove(text, word, case_sensitive=case_sensitive, normalize=normalize)
+def remove_all_occurrences(text, word, case_sensitive=True, normalize=True, boundary_mode="strict"):
+    return remove(text, word, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
 
-def replace_occurrence(text, word, replacement, n, case_sensitive=True, normalize=True):
-    return replace(text, word, replacement, n=n, case_sensitive=case_sensitive, normalize=normalize)
+def replace_occurrence(text, word, replacement, n, case_sensitive=True, normalize=True, boundary_mode="strict"):
+    return replace(text, word, replacement, n=n, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
 
-def replace_occurrence_range(text, word, replacement, start_n, end_n, case_sensitive=True, normalize=True):
-    return replace(text, word, replacement, n=(start_n, end_n), case_sensitive=case_sensitive, normalize=normalize)
+def replace_occurrence_range(text, word, replacement, start_n, end_n, case_sensitive=True, normalize=True, boundary_mode="strict"):
+    return replace(text, word, replacement, n=(start_n, end_n), case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
 
-def replace_all_occurrences(text, word, replacement, case_sensitive=True, normalize=True):
-    return replace(text, word, replacement, case_sensitive=case_sensitive, normalize=normalize)
+def replace_all_occurrences(text, word, replacement, case_sensitive=True, normalize=True, boundary_mode="strict"):
+    return replace(text, word, replacement, case_sensitive=case_sensitive, normalize=normalize, boundary_mode=boundary_mode)
 
 swap_words = swap
